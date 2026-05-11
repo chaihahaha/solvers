@@ -16,11 +16,12 @@ def read_input_file(filename):
 
 def calculate_shipping_cost(weight, num_items, total_price):
     """计算单个订单的运费"""
-    base = weight + num_items * 0.3 - 8
+    excess = max(0, weight - 8)
+    shipping = excess * 0.3
     if total_price > 299:
-        return base
+        return shipping
     else:
-        return base + 15
+        return shipping + 15
 
 def solve_optimal_partition(df, max_orders=None):
     """
@@ -63,6 +64,8 @@ def solve_optimal_partition(df, max_orders=None):
     num_items = {}
     # total_price[k]: 订单k的总价格
     total_price = {}
+    # excess_weight[k]: 订单k超过8kg的部分（>= 0）
+    excess_weight = {}
     # shipping_cost[k]: 订单k的运费
     shipping_cost = {}
     # order_used[k]: 订单k是否被使用（0/1）
@@ -74,6 +77,7 @@ def solve_optimal_partition(df, max_orders=None):
         weight[k] = model.addVar(vtype=GRB.CONTINUOUS, lb=0, name=f"weight_{k}")
         num_items[k] = model.addVar(vtype=GRB.INTEGER, lb=0, name=f"num_items_{k}")
         total_price[k] = model.addVar(vtype=GRB.CONTINUOUS, lb=0, name=f"total_price_{k}")
+        excess_weight[k] = model.addVar(vtype=GRB.CONTINUOUS, lb=0, name=f"excess_weight_{k}")
         shipping_cost[k] = model.addVar(vtype=GRB.CONTINUOUS, lb=0, name=f"shipping_cost_{k}")
         order_used[k] = model.addVar(vtype=GRB.BINARY, name=f"order_used_{k}")
         above_threshold[k] = model.addVar(vtype=GRB.BINARY, name=f"above_threshold_{k}")
@@ -117,6 +121,11 @@ def solve_optimal_partition(df, max_orders=None):
         model.addConstr(num_items[k] <= M * order_used[k], f"order_used_lower_{k}")
         model.addConstr(num_items[k] >= 0.1 * order_used[k], f"order_used_upper_{k}")
     
+    # 4. 定义超过8kg的超重部分
+    for k in range(max_orders):
+        # excess_weight[k] >= max(0, weight[k] - 8)，最小化运费时会取等号
+        model.addConstr(excess_weight[k] >= weight[k] - 8, f"excess_weight_{k}")
+    
     # 4. 定义above_threshold变量
     for k in range(max_orders):
         # 如果total_price[k] > 299，则above_threshold[k] = 1
@@ -128,12 +137,8 @@ def solve_optimal_partition(df, max_orders=None):
     
     # 5. 运费计算
     for k in range(max_orders):
-        # 运费 = (总重量 + 商品数量*0.3 - 8) + 15 * (1 - above_threshold[k])
-        # 即：如果总价>299，above_threshold[k]=1，则运费 = base
-        #     否则，运费 = base + 15
-        base_cost = weight[k] + 0.3 * num_items[k] - 8
-        penalty = 15 * (1 - above_threshold[k])
-        model.addConstr(shipping_cost[k] == base_cost + penalty, f"shipping_cost_{k}")
+        # 运费 = 超重部分*0.3 + (总价未超过299则+15)
+        model.addConstr(shipping_cost[k] >= 0.3 * excess_weight[k] + 15 * (1 - above_threshold[k]), f"shipping_cost_{k}")
     
     # 6. 如果没有商品，则above_threshold必须为0
     for k in range(max_orders):
