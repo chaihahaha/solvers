@@ -16,8 +16,8 @@ def read_input_file(filename):
 
 def calculate_shipping_cost(weight, num_items, total_price):
     """计算单个订单的运费"""
-    excess = max(0, weight - 8)
-    shipping = excess * 0.3
+    excess = max(0, weight - 5)
+    shipping = excess * 1.2
     if total_price > 299:
         return shipping
     else:
