@@ -64,7 +64,7 @@ def solve_optimal_partition(df, max_orders=None):
     num_items = {}
     # total_price[k]: 订单k的总价格
     total_price = {}
-    # excess_weight[k]: 订单k超过8kg的部分（>= 0）
+    # excess_weight[k]: 订单k超过5kg的部分（>= 0）
     excess_weight = {}
     # shipping_cost[k]: 订单k的运费
     shipping_cost = {}
@@ -121,10 +121,10 @@ def solve_optimal_partition(df, max_orders=None):
         model.addConstr(num_items[k] <= M * order_used[k], f"order_used_lower_{k}")
         model.addConstr(num_items[k] >= 0.1 * order_used[k], f"order_used_upper_{k}")
     
-    # 4. 定义超过8kg的超重部分
+    # 4. 定义超过5kg的超重部分
     for k in range(max_orders):
-        # excess_weight[k] >= max(0, weight[k] - 8)，最小化运费时会取等号
-        model.addConstr(excess_weight[k] >= weight[k] - 8, f"excess_weight_{k}")
+        # excess_weight[k] >= max(0, weight[k] - 5)，最小化运费时会取等号
+        model.addConstr(excess_weight[k] >= weight[k] - 5, f"excess_weight_{k}")
     
     # 4. 定义above_threshold变量
     for k in range(max_orders):
@@ -137,8 +137,8 @@ def solve_optimal_partition(df, max_orders=None):
     
     # 5. 运费计算
     for k in range(max_orders):
-        # 运费 = 超重部分*0.3 + (总价未超过299则+15)
-        model.addConstr(shipping_cost[k] >= 0.3 * excess_weight[k] + 15 * (1 - above_threshold[k]), f"shipping_cost_{k}")
+        # 运费 = 超重部分*1.2 + (总价未超过299则+15)
+        model.addConstr(shipping_cost[k] >= 1.2 * excess_weight[k] + 15 * (1 - above_threshold[k]), f"shipping_cost_{k}")
     
     # 6. 如果没有商品，则above_threshold必须为0
     for k in range(max_orders):
