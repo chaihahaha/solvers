@@ -137,8 +137,9 @@ def solve_optimal_partition(df, max_orders=None):
     
     # 5. 运费计算
     for k in range(max_orders):
-        # 运费 = 超重部分*1.2 + (总价未超过299则+15)
-        model.addConstr(shipping_cost[k] >= 1.2 * excess_weight[k] + 15 * (1 - above_threshold[k]), f"shipping_cost_{k}")
+        # 运费 = 超重部分*1.2 + (有商品且总价<=299则+15)
+        # order_used-above_threshold: 0用于空订单/满299, 1用于未满299的订单
+        model.addConstr(shipping_cost[k] >= 1.2 * excess_weight[k] + 15 * (order_used[k] - above_threshold[k]), f"shipping_cost_{k}")
     
     # 6. 如果没有商品，则above_threshold必须为0
     for k in range(max_orders):
